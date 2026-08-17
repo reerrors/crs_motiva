@@ -41,10 +41,10 @@ App de monitoramento de vegetação rasteira (grama) em acostamentos e canteiros
 | Pessoa | Frente | Status |
 |---|---|---|
 | André | `db/schema.sql` + `pipeline/load/write_to_postgis.py` | [feito] Feito |
-| 1 (ML) | `pipeline/ml/` — features + classificador de urgência sobre a série de NDVI | [em andamento] Recebeu `ndvi_para_ml.csv` + guia, começando |
-| 1 (Frontend) | `frontend/` (MapLibre + tema HUD) | [em andamento] Recebeu guia + `segments_exemplo.geojson`, começando sem esperar API |
-| 1-2 (API) | `api/` (FastAPI) | [pendente] Não alocado ainda — guia já pronto (`guia_api.md`) |
-| 1 (Infra) | Docker Compose + ambiente do time | [feito] Funcionando — banco sobe já populado com dado atual |
+| Rafael | `pipeline/ml/` — features + classificador de urgência sobre a série de NDVI | [em andamento] Recebeu `ndvi_para_ml.csv` + guia, começando |
+| Kauã/Kauanny | `frontend/` (MapLibre + tema HUD) | [em andamento] Recebeu guia + `segments_exemplo.geojson`, começando sem esperar API |
+| Lucas/ Felipe | `api/` (FastAPI) | [pendente] Não alocado ainda — guia já pronto (`guia_api.md`) |
+| André | Docker Compose + ambiente do time | [feito] Funcionando — banco sobe já populado com dado atual |
 
 ## Arquitetura de diretórios (status atual)
 
@@ -98,7 +98,13 @@ crs_motiva/
 - Média de ~46 observações por segmento no ano
 - 15 segmentos com menos de 5 observações (série curta demais pra tendência confiável — sinalizado no guia enviado pro ML)
 - Padrão sazonal confirmado nos dados: NDVI mais alto no verão/chuva, mais baixo no inverno/seca — consistente com clima real de SP, valida que o sinal captura vegetação de verdade
+## Instalando Dependencias
 
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 ## Docker Compose
 
 `docker-compose.yml` sobe um container PostgreSQL 16 + PostGIS 3.4, e na primeira subida (volume vazio) carrega automaticamente `db/init/01_seed.sql` — um dump completo (schema + dados atuais) gerado via `pg_dump`. Isso permite que qualquer pessoa do time, mesmo sem Linux/WSL2, tenha o banco completo rodando com:
