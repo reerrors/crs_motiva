@@ -8,7 +8,6 @@ Documentação de contexto do projeto — decisões técnicas, arquitetura, stat
 
 App de monitoramento de vegetação rasteira (grama) em acostamentos e canteiros de rodovia, focado num único trecho pra prototipar: **SP-330 (Anhanguera)**, em São Paulo. Objetivo: apoiar decisão de manutenção (poda/roçagem), mostrando num mapa, por km de rodovia, o estado de crescimento da vegetação — visual estilo NYC treemap (mas por km de rodovia, não por árvore), com tema visual dark/HUD tático.
 
-**Dono técnico do projeto:** André (estudante de engenharia de dados, GitHub: reerrors). Projeto agora dividido entre 6 pessoas.
 
 ## Decisões técnicas fechadas (e por quê)
 
