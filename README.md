@@ -8,7 +8,6 @@ Documentação de contexto do projeto — decisões técnicas, arquitetura, stat
 
 App de monitoramento de vegetação rasteira (grama) em acostamentos e canteiros de rodovia, focado num único trecho pra prototipar: **SP-330 (Anhanguera)**, em São Paulo. Objetivo: apoiar decisão de manutenção (poda/roçagem), mostrando num mapa, por km de rodovia, o estado de crescimento da vegetação — visual estilo NYC treemap (mas por km de rodovia, não por árvore), com tema visual dark/HUD tático.
 
-
 ## Decisões técnicas fechadas (e por quê)
 
 1. **Não é detecção de altura literal em cm.** Só satélite gratuito disponível (sem câmera/drone). Sentinel-2 (10m/pixel) não resolve variação de cm de grama fisicamente. SAR/InSAR também descartado (grama muda estrutura rápido demais entre revisitas do radar pra manter coerência de fase).
@@ -44,8 +43,8 @@ App de monitoramento de vegetação rasteira (grama) em acostamentos e canteiros
 | André | `db/schema.sql` + `pipeline/load/write_to_postgis.py` | [feito] Feito |
 | 1 (ML) | `pipeline/ml/` — features + classificador de urgência sobre a série de NDVI | [em andamento] Recebeu `ndvi_para_ml.csv` + guia, começando |
 | 1 (Frontend) | `frontend/` (MapLibre + tema HUD) | [em andamento] Recebeu guia + `segments_exemplo.geojson`, começando sem esperar API |
-| 1-2 (API) | `api/` (FastAPI) | [pendente] Não alocado ainda |
-| 1 (Infra) | Docker Compose + ambiente do time | [pendente] Não iniciado — importante pra quem não tem WSL2/Linux conseguir rodar o banco |
+| 1-2 (API) | `api/` (FastAPI) | [pendente] Não alocado ainda — guia já pronto (`guia_api.md`) |
+| 1 (Infra) | Docker Compose + ambiente do time | [feito] Funcionando — banco sobe já populado com dado atual |
 
 ## Arquitetura de diretórios (status atual)
 
@@ -65,8 +64,9 @@ crs_motiva/
 │   ├── ml/                             [pendente] começando agora (colega de ML)
 │   └── load/
 │       └── write_to_postgis.py        [feito] feito e validado
+├── docker-compose.yml                   [feito] PostGIS + seed automático (db/init/01_seed.sql)
 ├── orchestration/                      [pendente] não iniciado
-├── api/                                 [pendente] não iniciado
+├── api/                                 [pendente] não iniciado, guia pronto
 ├── frontend/                            [em andamento] começando agora
 ├── notebooks/                           (scripts de exploração/execução pontual)
 └── .env / .env.example / .gitignore    [feito] configurados
@@ -99,13 +99,26 @@ crs_motiva/
 - 15 segmentos com menos de 5 observações (série curta demais pra tendência confiável — sinalizado no guia enviado pro ML)
 - Padrão sazonal confirmado nos dados: NDVI mais alto no verão/chuva, mais baixo no inverno/seca — consistente com clima real de SP, valida que o sinal captura vegetação de verdade
 
+## Docker Compose
+
+`docker-compose.yml` sobe um container PostgreSQL 16 + PostGIS 3.4, e na primeira subida (volume vazio) carrega automaticamente `db/init/01_seed.sql` — um dump completo (schema + dados atuais) gerado via `pg_dump`. Isso permite que qualquer pessoa do time, mesmo sem Linux/WSL2, tenha o banco completo rodando com:
+```bash
+docker compose up -d
+```
+sem precisar repetir os passos manuais (criar banco, senha, extensão PostGIS) que o André fez originalmente.
+
+**Detalhe técnico resolvido:** o dump gerado pela versão local do `pg_dump` (16.14) incluiu comandos `\restrict`/`\unrestrict`, não reconhecidos pela versão de `psql` dentro da imagem Docker usada — removidos do dump com `sed` antes de funcionar.
+
+**Se precisar recarregar o seed** (dado mudou, quer atualizar o que o time recebe): gera um novo dump, substitui `db/init/01_seed.sql`, e roda `docker compose down -v && docker compose up -d` (o `-v` remove o volume, forçando a próxima subida a recarregar do zero).
+
+Guia completo com instruções de conexão, schema e endpoints sugeridos: `guia_api.md`.
+
 ## Próximos passos imediatos
 
-1. Alocar pessoa(s) pra `api/` (FastAPI) — depende de ter acesso ao banco (Linux/WSL2 direto, ou aguardar Docker Compose)
-2. Escrever `docker-compose.yml` (PostgreSQL/PostGIS) — prioridade pra quem do time não tem Linux
-3. ML: colega já com dataset em mãos, construindo features e primeiro classificador
-4. Frontend: colega já com dado de exemplo, construindo mapa MapLibre + tema HUD
-5. Mais pra frente: `orchestration/` (Prefect/Dagster) pra automatizar atualização periódica do NDVI
+1. Alocar pessoa(s) pra `api/` (FastAPI) — Docker Compose já resolve o acesso ao banco, sem depender de ambiente Linux
+2. ML: colega já com dataset em mãos, construindo features e primeiro classificador
+3. Frontend: colega já com dado de exemplo, construindo mapa MapLibre + tema HUD
+4. Mais pra frente: `orchestration/` (Prefect/Dagster) pra automatizar atualização periódica do NDVI
 
 ## Cadência de atualização esperada (realista, já discutida)
 

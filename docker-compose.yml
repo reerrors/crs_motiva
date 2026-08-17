@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: crs_motiva_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: crs_motiva
+    ports:
+      - "5432:5432"
+    volumes:
+      # dados persistem entre reinicializações do container
+      - pgdata:/var/lib/postgresql/data
+      # scripts aqui dentro rodam automaticamente na PRIMEIRA vez que
+      # o container sobe com um volume vazio -- é aqui que entra o
+      # dump com schema + dados atuais
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d crs_motiva"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
