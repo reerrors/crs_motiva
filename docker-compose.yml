@@ -22,5 +22,20 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: crs_motiva_api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/crs_motiva
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   pgdata:

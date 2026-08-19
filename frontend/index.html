@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CRS Motiva — Monitoramento SP-330</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+  <div id="map"></div>
+  <div id="scan-overlay"></div>
+
+  <!-- cantos decorativos estilo mira/HUD -->
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+
+  <div id="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <div>
+        <h1>CRS Motiva // Monitoramento Rodoviário</h1>
+        <div class="sub">SP-330 · Anhanguera · Track vegetação</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="stats">
+        <div>SEGMENTOS <b id="stat-total">—</b></div>
+        <div>ATENÇÃO <b id="stat-attention" style="color:var(--red)">—</b></div>
+        <div>AGENDADOS <b id="stat-scheduled">0</b></div>
+      </div>
+      <div class="topbar-btns">
+        <button class="tb-btn" id="theme-toggle">🌙 Escuro</button>
+        <button class="tb-btn" id="open-analise">Análise</button>
+        <button class="tb-btn" id="open-agendados">Agendados</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="legend">
+    <h4>Urgência de Manutenção</h4>
+    <div class="row"><span class="sw" style="background:var(--phosphor)"></span> Recém-podado</div>
+    <div class="row"><span class="sw" style="background:var(--amber)"></span> Crescimento moderado</div>
+    <div class="row"><span class="sw" style="background:var(--red)"></span> Requer atenção</div>
+    <div class="row"><span class="sw" style="background:var(--gray)"></span> Sem previsão / dado insuficiente</div>
+  </div>
+
+  <!-- navegador de km, complementar ao mapa -->
+  <div id="km-nav">
+    <button id="km-prev-btn" class="km-arrow" title="Trecho anterior">‹</button>
+    <div class="km-nav-col km-nav-side" id="km-prev-col">
+      <div class="km-nav-name" id="km-prev-name">—</div>
+    </div>
+    <div class="km-nav-track">
+      <span class="km-nav-dot"></span><span class="km-nav-line"></span>
+      <span class="km-nav-dot km-nav-dot-current"></span>
+      <span class="km-nav-line"></span><span class="km-nav-dot"></span>
+    </div>
+    <div class="km-nav-col km-nav-side" id="km-next-col">
+      <div class="km-nav-name" id="km-next-name">—</div>
+    </div>
+    <button id="km-next-btn" class="km-arrow" title="Próximo trecho">›</button>
+  </div>
+  <div id="km-nav-current" class="km-nav-current-label">KM —</div>
+
+  <div id="api-error">API indisponível — verifique se o backend está rodando em localhost:8000</div>
+
+  <aside id="panel">
+    <div id="panel-header">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="detalhes">Detalhes</button>
+        <button class="tab-btn" data-tab="analise">Análise</button>
+        <button class="tab-btn" data-tab="agendados">Agendados</button>
+      </div>
+      <button id="panel-close">✕</button>
+    </div>
+
+    <div id="panel-body">
+
+      <!-- ABA: DETALHES -->
+      <div class="tab-pane active" id="tab-detalhes">
+        <div id="empty-panel">
+          <p>Selecione um segmento no mapa,<br>ou use o navegador de KM abaixo do mapa,<br>para ver detalhes de vegetação<br>e agendar manutenção.</p>
+        </div>
+        <div id="panel-content" style="display:none;">
+          <div class="km" id="detail-km">—</div>
+          <div class="road" id="detail-road">—</div>
+          <div class="status-tag" id="status-tag">—</div>
+
+          <div class="field-grid">
+            <div class="field">
+              <div class="label">Confiança do dado</div>
+              <div class="value small" id="detail-confidence">—</div>
+            </div>
+            <div class="field">
+              <div class="label">Cobertura gramínea</div>
+              <div class="value" id="detail-grass">—</div>
+            </div>
+          </div>
+
+          <div class="field-grid">
+            <div class="field" style="grid-column: span 2;">
+              <div class="label">Trecho</div>
+              <div class="value small" id="detail-track">—</div>
+            </div>
+          </div>
+
+          <div class="section-title">Série NDVI recente</div>
+          <div class="ndvi-mini" id="ndvi-mini"></div>
+          <div class="ndvi-note" id="ndvi-note">carregando…</div>
+
+          <div id="scheduling-box">
+            <button id="btn-agendar" class="btn-primary">Agendar Corte</button>
+
+            <div id="schedule-form">
+              <label for="schedule-date">Data</label>
+              <input type="date" id="schedule-date" />
+              <label for="schedule-time">Horário</label>
+              <select id="schedule-time">
+                <option value="" disabled selected>Selecione</option>
+                <option>07:00</option><option>08:00</option><option>09:00</option>
+                <option>10:00</option><option>11:00</option><option>13:00</option>
+                <option>14:00</option><option>15:00</option><option>16:00</option>
+              </select>
+              <p id="schedule-error">Preencha data e horário.</p>
+              <div class="row-btns">
+                <button id="btn-confirm" class="btn-primary">Confirmar</button>
+                <button id="btn-cancel" class="btn-secondary">Cancelar</button>
+              </div>
+            </div>
+
+            <div id="schedule-success">
+              <p>✓ Corte agendado</p>
+              <div class="sub" id="success-text"></div>
+              <button id="btn-new-schedule">Agendar outro horário</button>
+            </div>
+
+            <p class="mock-note">Agendamento é um protótipo — fica salvo só nesta sessão do navegador, ainda não é gravado no backend.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ABA: ANÁLISE -->
+      <div class="tab-pane" id="tab-analise">
+        <div class="section-title" style="margin-top:0;">Distribuição por urgência</div>
+        <div id="analise-urgencia" class="analise-bars"></div>
+
+        <div class="section-title">Distribuição por confiança</div>
+        <div id="analise-confianca" class="analise-bars"></div>
+
+        <div class="field-grid" style="margin-top:16px;">
+          <div class="field">
+            <div class="label">Cobertura média gramínea</div>
+            <div class="value" id="analise-grass-avg">—</div>
+          </div>
+          <div class="field">
+            <div class="label">Km total mapeado</div>
+            <div class="value small" id="analise-km-total">—</div>
+          </div>
+        </div>
+
+        <p class="mock-note">Estatísticas calculadas em tempo real sobre os segmentos carregados do backend.</p>
+      </div>
+
+      <!-- ABA: AGENDADOS -->
+      <div class="tab-pane" id="tab-agendados">
+        <div class="section-title" style="margin-top:0;">Cortes agendados</div>
+        <div id="agendados-list"></div>
+        <div id="agendados-empty" class="ndvi-note">Nenhum corte agendado ainda.</div>
+        <p class="mock-note">Lista mantida localmente nesta sessão (protótipo) — ainda não persiste no backend.</p>
+      </div>
+
+    </div>
+  </aside>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
